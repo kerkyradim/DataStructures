@@ -1,124 +1,246 @@
 
-import java.util.BitSet;
-import java.util.Iterator;
-import java.util.NoSuchElementException;
-import java.util.Random;
+    import java.lang.reflect.Array;
+    import java.util.Iterator;
+    import java.util.NoSuchElementException;
 
-
-public class OpenAddressingHashTable<K,V> implements  Dictionary<K, V> {
-    public static final int DIFAULT_INITIAL_SIZE = 17;
-    private int size = 0;
+    public class OpenAddressingHashTable<K,V> implements  Dictionary<K,V> {
+    public static final int DEFAULT_INITIAL_SIZE = 8;
+    private int size ;
     private Entry<K, V>[] array;
+    private  int [][]m;
+    private int b;
+
+
 
 
     //default constructor
     public OpenAddressingHashTable(int m) {
+
         if (m <= 0) {
             throw new IllegalArgumentException("Array size must be positive");
         }
+
         this.size = 0;
-        this.array = (Entry<K, V>[]) new Object[DIFAULT_INITIAL_SIZE];
-        for (int i = 0; i < m; i++) {
-            array[i] = null;
-        }
-
+        this.array = (Entry<K, V>[]) Array.newInstance(Entry.class, m);
+        this.b=calculateB(array.length);
+        this.m=new int[this.b][32];
+        this.m=RandomMatrix(this.b);
     }
 
-    //constructor που καλει τον default constructor
+
     public OpenAddressingHashTable() {
-        this(DIFAULT_INITIAL_SIZE);
+        this(DEFAULT_INITIAL_SIZE);
     }
 
+    /**
+     * Method responsible for inserting a new Entry element through insert method
+     * @param key   a new key
+     * @param value a new value
+     * */
     @Override
     public void put(K key, V value) {
         rehashIfNeeded();
         insert(key, value);
     }
 
+    /**
+     * Method responsible for removing a key
+     * @param key the key
+     * @return V The value associated with the  key
+     */
     @Override
     public V remove(K key) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        rehashIfNeeded();
+        if (!contains(key)) {
+            return null;
+        }
+        int i=matrixMethod(key);
+        V tempValue=array[i].getValue();
+        array[i]=null;
+        //array[i]=null;
+        int j=(i+1)%array.length;
+        while(array[j] != null){
+            int newPos=matrixMethod(array[j].getKey());
+            if (newPos <= i) {
+                Entry<K, V> temp = array[j];
+                array[j] = array[i];
+                array[i] = temp;
+                i=j;
+            }
+            j = (j+1)%array.length;
+        }
+        size--;
+
+        System.out.println("Value of removed key:"+tempValue);
+        return tempValue;
     }
 
+    /**
+     *Method responsible for getting an element
+     * @param key the key
+     * @return V The value associated with the key
+     */
     @Override
     public V get(K key) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        int position = matrixMethod(key);
+        int i = position;
+       while(array[i] != null) {
+             if ((array[i].getKey().equals(key))) {
+                return array[i].getValue();
+             }
+             i = (i+1)%array.length;
+       }
+        //not found
+        return null;
+
     }
 
+    /**
+     * Method responsible for checking if a key exist
+     * @param key the key
+     * @return boolean If key exist returns true
+     */
     @Override
     public boolean contains(K key) {
-       
-
-
-        return false;
+        if(key == null){
+            throw new IllegalArgumentException("argument to contain() is null");
+        }
+        return get(key) != null;
     }
 
+    /**
+     * Method responsible for checking if the array is empty
+     * @return boolean If array is empty returns true
+     */
+    @Override
+    public boolean isEmpty() {
+        return size == 0;
+    }
+
+    /**
+     * Method responsible for getting current size
+     * @return int size;
+     */
     @Override
     public int size() {
         return size;
     }
 
-
+    /**
+     * Method responsible for deleting all the elements in the array
+     */
     @Override
     public void clear() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        size = 0;
+        for (int i = 0; i < size; i++) {
+            array[i] = null;
+        }
     }
 
+    /**
+     * Method responsible for iterating all the elements in the array
+     * @return Iterator HashIterator
+     */
     @Override
     public Iterator<Entry<K, V>> iterator() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        return new HashIterator();
     }
 
+    /**
+     * Method responsible for checking if rehash is needed
+     */
     private void rehashIfNeeded() {
+        int newLength;
+        if(size == array.length ){
+             newLength = array.length*2;
+             System.out.println("here doubling");
 
+        }else if(size < (array.length / 4) && array.length > 2*DEFAULT_INITIAL_SIZE){
+             newLength = array.length/2;
+             System.out.println("here cropped");
 
-    }
-
-    private void insert(K key, V value) {
-        int position = matrixMethod(key);
-        int i = position;
-        EntryImpl<K, V> newEn = new EntryImpl<K, V>(key, value);
-        do {
-            if (array[i] == null) {
-                array[i] = newEn;
-                size++;
-                return;
-            }
-
-        i=(i+1) % array.length;
-        } while (i < array.length );
-    }
-
-
-    private class HashIterator implements Iterator<Entry<K, V>> {
-        private Iterator<Entry<K, V>> it;
-
-        public HashIterator() {
-
+        }else{
+             //do nothing
+             return;
         }
+
+        OpenAddressingHashTable<K,V> newHashTable= new OpenAddressingHashTable<>(newLength);
+
+        for(Entry<K,V> e: this){
+            newHashTable.insert(e.getKey(),e.getValue());
+        }
+        this.array = newHashTable.array;
+        this.size = newHashTable.size;
+        this.m = newHashTable.m;
+        this.b = newHashTable.b;
+    }
+
+    /**
+     * Method responsible for inserting a new Entry element
+     * @param key a new key
+     * @param value a new value
+     */
+    private void insert(K key, V value) {
+        int pos = matrixMethod(key);
+        int i = pos;
+        EntryImpl<K,V> e = new EntryImpl<>(key,value);
+        boolean FLAG = true;
+        while(FLAG ){
+            if(array[pos] == null){
+                array[pos] = e;
+                FLAG=false;
+                size++;
+            }else if(array[pos].getKey().equals(key)){
+                array[pos] = e;
+                FLAG = false;
+            }else{
+                i = (i+1)%array.length;
+                pos = i;
+            }
+        }
+
+    }
+
+    /**
+     * Class responsible for creating a HashIterator object
+     */
+    private class HashIterator implements Iterator<Entry<K, V>> {
+    int curr;
+
+    public HashIterator() {
+        curr = 0;
+    }
 
         @Override
         public boolean hasNext() {
-            return true;
+            while(curr<array.length){
+                if(array[curr] != null){
+                return true;
+            }
+        curr++;
+        }
+        return false;
         }
 
         @Override
         public Entry<K, V> next() {
-            if (!hasNext()) {
-                throw new NoSuchElementException();
-            }
-            return it.next();
+        while(!hasNext()){
+             throw new NoSuchElementException();
+        }
+
+        return array[curr++];
         }
     }
 
-    
-
-
-    private static class EntryImpl<K, V> implements Dictionary.Entry<K, V> {
+    /**
+     * Class responsible for creating a new Entry object
+     * @param <K> a new key
+     * @param <V> a new value
+     */
+     private static class EntryImpl<K, V> implements Dictionary.Entry<K, V> {
         private K key;
         private V value;
 
-        //constructor
         public EntryImpl(K key, V value) {
             this.key = key;
             this.value = value;
@@ -133,67 +255,75 @@ public class OpenAddressingHashTable<K,V> implements  Dictionary<K, V> {
         public V getValue() {
             return value;
         }
-    }
+     }
 
-    //δινω το hashcode του κλειδιου
-    //φτιαχνω νεο πιανακα b τυχαιο με μεγεθοσ γαρμμης 32 και στηλης
-    //πολλαπλασιαζω αυτον τον πιανακ με τον πινακα των bits του κλεδιου
-    //παιρνω εναν δυαδικο αριθμο,τον γυριζω στο 10 δικο
-    //και αυτο μ δινει το index π χρησιμοποιω στισ λειτουργιες
-    //search,contains,insert
+
+    /**
+     * Method responsible for creating universal hashing process
+     * @param key the key,which value is analyzed in bits
+     * @return int The position where delete,insert and search functions start
+     */
     private int  matrixMethod(K key) {
-        int b=8;
+        int[] x; //array with length=32
         int entry = key.hashCode();
-        BitSet x = intToBitSet(entry);
-        int [][]m = createRandomMatrix(b);
-        BitSet h=new BitSet(b);
-        for(int i=0; i<b; i++){
-            int sum1=0;
-            for(int j=0; j<32; j++){
-                int val=(x.get(i)==true ? 1 : 0);
-                int newInt=  j * val ;
-                sum1 = sum1 % newInt;
-                if(sum1 == 0){
-                    h.set(i,true);
-                }else{
-                    h.set(i,false);
-                }
+        x = getBitsFromInt(entry);
+        int[] h = new int[b]; //output
+
+        for (int i = 0; i < b; i++) {
+            int sum1 = 0;
+            for (int j = 0; j < 32; j++) {
+                sum1 = (sum1 + m[i][j] * x[j]) % 2;
             }
+            h[i] = sum1;
         }
-        //convert 2 to 10
-        int sum2=0;
+
+        //convert 2 to int
+        StringBuilder stringBuilder = new StringBuilder();
         for(int i=0; i<b; i++){
-            int var=(h.get(i)==true ? 1 : 0);
-            sum2 = sum2 + (var * 2^i);
+            stringBuilder.append(h[i]);
         }
-        return sum2;
+        String newString=stringBuilder.toString();
+        int pos = Integer.parseInt(newString, 2);
+        return pos;
     }
 
-    private static BitSet intToBitSet(int value) {
-        BitSet bits = new BitSet();
-        int index = 0;
-        while (value != 0) {
-            if (value % 2 != 0) {
-                //set a true value at this index
-                bits.set(index);
-            }
-            ++index;
-            value = value >>> 1;
+    /**
+     * Method responsible for reading an int value bit by bit
+     * @param value The value,which analyzed in bits
+     * @return int[] An array with boolean values,represent the bits
+     */
+    private int[] getBitsFromInt(int value) {
+        int[] bits = new int[32];
+        int mask = 1 << 31;
+        for (int bit = 0; bit < 32; bit++) {
+            bits[bit] = ((value & mask) == 0 ? 0 : 1);
+            value <<= 1;
         }
         return bits;
     }
 
-    private  int[][]  createRandomMatrix(int rows){
-        int [][] m = new int [rows][32];
+    /**
+     * Method responsible for creating a new random matrix with only 0-1 values
+     * @param rows Denotes the rows of the array
+     * @return int[][] The matrix
+     */
+    private int[][] RandomMatrix(int rows){
         for(int i=0; i<rows; i++){
             for(int j=0; j<32; j++){
-                Random rng =new Random();
-                m[i][j]= rng.nextInt()%2;
+                m[i][j] = (int) Math.round(Math.random());
             }
         }
-    return m;
+        return  m;
     }
 
-
-    
+    /**
+     * Method responsible for calculating the rows of the random matrix m
+     * @param length Denotes the length of the array
+     * @return int The rows
+     */
+    private int calculateB(int length){
+        int b = (int)(Math.log(length) / Math.log(2));
+        return b;
+    }
 }
+

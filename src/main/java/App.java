@@ -29,8 +29,8 @@ public class App {
         for(Dictionary.Entry<String, Integer> e: dict) {
             System.out.println("Word " + e.getKey() + " appeared " + e.getValue() + " times");
         }
-
     }
-
 }
+
+
 

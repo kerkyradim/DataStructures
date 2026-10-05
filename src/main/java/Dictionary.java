@@ -50,10 +50,10 @@ public interface Dictionary<K, V> extends Iterable<Dictionary.Entry<K, V>> {
         /*
         keyword default επιετρεπει υλοποιηση σε interface
         */
-        default boolean isEmpty(){
+         boolean isEmpty();
 
-			return size() == 0;
-        }
+
+
 
 	/**
 	 * Get the number of elements
