@@ -1,7 +1,7 @@
 # Open Addressing Hash Table (Java)
 
-**Course:** Data Structures — Harokopio University of Athens (3rd semester)  
-**Author:** [Kerkyra Dimisianou](https://github.com/kerkyradim) · IT22026  
+**Course:** Data Structures — Harokopio University of Athens  
+**Author:** [Kerkyra Dimisianou](https://github.com/kerkyradim) · 
 **Repository:** [kerkyradim/DataStructures](https://github.com/kerkyradim/DataStructures)
 
 Implementation of a **dictionary ADT** using an **open addressing hash table** with **linear probing**, custom **matrix hashing** (bit-set + random matrix), dynamic **rehashing**, and a **word-frequency** demo (`App`).
